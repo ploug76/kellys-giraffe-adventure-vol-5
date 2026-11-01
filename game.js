@@ -213,10 +213,10 @@ const WORLDS=[
  {name:'Koala Grove',bg:'bg4',ter:'ter4',top:'#5a9a3a',top2:'#2e6a2a',edge:'#14200e',plank:'#8a6a3a',song:'w4',amb:'fireflies',sky:'#0c1a30',fog:'rgba(80,160,120,.08)'},
  {name:'Gift Shop Plaza',bg:'bg5',ter:'ter5',top:'#c86aa8',top2:'#8a3a7a',edge:'#2a1030',plank:'#b07a4e',song:'w5',amb:'sparkle',sky:'#2a1048',fog:'rgba(200,90,220,.07)'}];
 const BOSSES=[
- {k:'sweep',name:'SERGEANT SWEEPBOT',hp:6},
+ {k:'sweep',name:'SERGEANT SWEEPBOT',hp:5},
  {k:'net',name:'NETTIE THE NET-BOT',hp:7},
  {k:'hover',name:'HOVER-KEEPER 3000',hp:8},
- {k:'mega',name:'HEAD KEEPER MEGA-BOT',hp:12}];
+ {k:'mega',name:'HEAD KEEPER MEGA-BOT',hp:10}];
 /* friends: freed from cages, follow the giraffe, ACTION calls their help */
 const PALS={ele:{name:'ELLIE THE ELEPHANT',short:'Ellie',body:'ele_body',gap:62,lv:0},pen:{name:'PERCY THE PENGUIN',short:'Percy',body:'pen_body',gap:44,lv:2},koa:{name:'KIKI THE KOALA',short:'Kiki',body:'koa_body',gap:46,lv:4}};
 const PAL_ORDER=['ele','pen','koa'];
@@ -277,7 +277,7 @@ function buildLevel(li){const L=LEVELS[li],R=rng(5000+li*77),cols=[];let x=0,h=9
   case 'ledge':{flat(3);const up=h>=7?5:3;gem(T.length-2,h-1);h-=up;flat(6);gem(T.length-4,h-1);gem(T.length-3,h-1);if(st)star(T.length-3,h-3);foe('beetle',T.length-2,h);h+=up;flat(4);break}
   case 'cage':flat(5);cage={x:(T.length-1)*TS,y:h*TS,hp:3,pal:arg||'ele'};flat(9);break;
   /* Ellie: a dry moat too wide to jump; spraying fills it and logs float up */
-  case 'spray':{flat(4);const s0=T.length,g=9;pit(g);const logs=[[s0+1,h,2],[s0+4,h-1,2],[s0+7,h,1]];
+  case 'spray':{flat(4);const s0=T.length,g=9;pit(g);const logs=li===1?[[s0,h,9]]:[[s0+1,h,2],[s0+4,h,2],[s0+7,h,1]];
    helps.push({k:'ele',kind:'moat',x:s0*TS,s0,g,row:h,logs,fill:0,done:0});for(let i=0;i<g;i++)gem(s0+i,h-2-(i%3===1?1:0));if(st)star(s0+4,h-4);flat(5);break}
   /* Percy: iron fence with a low gap; he slides under and flips the switch on the far side */
   case 'gate':{flat(4);const gx=T.length;col(h);for(let y=0;y<h-1;y++)set(gx,y,7);flat(3);const sx=(T.length-1)*TS+TS/2;flat(3);
@@ -337,7 +337,8 @@ function startLedge(p,l){p.ledge={sx:p.x,sy:p.y,x:l.x,y:l.y,t:0};p.vx=p.vy=0;p.r
 function doAction(p){const now=G.t;const dbl=now-p.lastTap<0.3;p.lastTap=now;
  if(!p.onG){const lg=findLedge(p);if(lg){startLedge(p,lg);return}}
  if(p.swing)return;const hk=nearHook(p);if(hk&&!p.onG){grabHook(p,hk);return}
- const hn=helpNear();if(hn&&!dbl&&startHelp(hn))return;
+ const hn=helpNear();if(hn&&!dbl&&startHelp(hn)){p.lastTap=-9;return}
+ if(dbl&&p.onG&&G.L.helps&&G.L.helps.some(h=>h.active&&!h.done&&Math.abs(h.x-p.x)<320)){p.lastTap=-9;return}
  const tt=tongueTarget(p);if(tt&&!dbl){p.tng=0.3;p.tngT=tt;AU.fx('tongue');return}
  if(!p.onG&&inp.D){startPound(p);return}
  if(inp.U){startRam(p,-1);return}
@@ -575,9 +576,9 @@ function updBoss(dt){const b=G.boss,p=G.p,A=G.arena;if(!b)return;b.t+=dt;b.inv=M
  if(b.st==='dead'){b.vy+=GRAV*0.4*dt;if(b.k==='hover'){b.y=Math.min(b.gy,b.y+200*dt)}else bossGround(b,dt);if(b.t>0.3&&Math.random()<0.3)stars(b.x+rand(-40,40),b.y-rand(20,b.h),3);if(b.t>2.2&&!G.won)bossBeaten();return}
  if(b.st==='dizzy'){if(b.k==='hover'){b.y=Math.min(b.gy,b.y+400*dt)}else bossGround(b,dt);if(b.t>(b.dz||1.6)){b.st=b.k==='hover'?'rise':(b.k==='net'?'climb':'idle');b.t=0;b.n=0}}
  else if(b.k==='sweep'){
-  if(b.st==='idle'){bossGround(b,dt);b.face=dirP;if(b.t>(ph2?0.7:1.1)){b.n++;if(b.n%3===0){b.st='hop';b.t=0;b.vy=-780;AU.fx('roar')}else{b.st='wind';b.t=0}}}
-  else if(b.st==='wind'){b.x+=Math.sin(b.t*60)*1.5;if(b.t>0.45){b.st='charge';b.t=0;b.vx=b.face*(ph2?520:430);AU.fx('ram')}}
-  else if(b.st==='charge'){bossGround(b,dt);b.x+=b.vx*dt;if(Math.random()<0.5)dust(b.x-b.face*40,b.y,1);if(b.x<A.x0+b.w/2||b.x>A.x1-b.w/2){b.x=clamp(b.x,A.x0+b.w/2,A.x1-b.w/2);b.st='dizzy';b.t=0;b.dz=ph2?1.4:1.8;shake(12);AU.fx('crack');stars(b.x+b.face*40,b.y-b.h*0.8,10)}}
+  if(b.st==='idle'){bossGround(b,dt);b.face=dirP;if(b.t>(ph2?1.0:1.4)){b.n++;if(b.n%3===0){b.st='hop';b.t=0;b.vy=-780;AU.fx('roar')}else{b.st='wind';b.t=0}}}
+  else if(b.st==='wind'){b.x+=Math.sin(b.t*60)*1.5;if(b.t>0.45){b.st='charge';b.t=0;b.vx=b.face*(ph2?380:340);AU.fx('ram')}}
+  else if(b.st==='charge'){bossGround(b,dt);b.x+=b.vx*dt;if(Math.random()<0.5)dust(b.x-b.face*40,b.y,1);if(b.x<A.x0+b.w/2||b.x>A.x1-b.w/2){b.x=clamp(b.x,A.x0+b.w/2,A.x1-b.w/2);b.st='dizzy';b.t=0;b.dz=ph2?2.2:2.6;shake(12);AU.fx('crack');stars(b.x+b.face*40,b.y-b.h*0.8,10)}}
   else if(b.st==='hop'){const land=bossGround(b,dt);if(land){wave(b.x-40,b.y,-1);wave(b.x+40,b.y,1);if(ph2){b.st='hop2';b.t=0;b.vy=-600}else{b.st='idle';b.t=0}AU.fx('pound')}}
   else if(b.st==='hop2'){const land=bossGround(b,dt);if(land){wave(b.x-40,b.y,-1,420);wave(b.x+40,b.y,1,420);b.st='idle';b.t=0;AU.fx('pound')}}}
  else if(b.k==='croc'){const pool={x0:A.x0+10*TS,x1:A.x0+17*TS};
@@ -605,19 +606,19 @@ function updBoss(dt){const b=G.boss,p=G.p,A=G.arena;if(!b)return;b.t+=dt;b.inv=M
   else if(b.st==='dive'){b.x+=b.vx*dt;b.y+=b.vy*dt;b.x=clamp(b.x,A.x0+60,A.x1-60);if(b.y>=b.gy){b.y=b.gy;shake(12);dust(b.x,b.y,14,'rgba(255,255,255,.9)');wave(b.x-40,b.y,-1,300);wave(b.x+40,b.y,1,300);b.st='dizzy';b.t=0;b.dz=ph2?1.6:2.0;AU.fx('pound')}}}
  else if(b.k==='mega'){
   if(b.st==='rage'){bossGround(b,dt);b.x+=Math.sin(b.t*50)*2;if(b.t>1.2){b.st='idle';b.t=0}}
-  else if(b.st==='idle'){bossGround(b,dt);b.face=dirP;if(b.t>(ph2?0.5:0.8)){b.n++;const m=b.n%4;b.st=m===1?'throw':m===2?'leap':m===3?(G.ents.filter(e=>!e.dead&&e.k==='pbot').length<3?'summon':'throw'):'leap';b.t=0;b.c=0}}
-  else if(b.st==='throw'){bossGround(b,dt);b.face=dirP;if(b.t>0.35){b.t=0;b.c++;b.thr=0.3;const sp=ph2?[-120,0,120]:[0];for(const o of sp)lob('wrench',b.x+b.face*30,b.y-140,p.x+o+p.vx*0.3,p.y-20,0.85,14);AU.fx('throw');if(b.c>=(ph2?3:2)){b.st='idle';b.t=0}}b.thr=Math.max(0,(b.thr||0)-dt)}
-  else if(b.st==='summon'){bossGround(b,dt);if(b.t>0.6&&!b.sm){b.sm=1;AU.fx('laugh');for(const sx of[A.x0+60,A.x1-60]){G.ents.push({k:'pbot',x:sx,y:b.gy-200,w:44,h:44,vx:sgn(p.x-sx)*90,vy:0,face:1,hp:1,t:0,st:'walk',x0:sx,y0:b.gy,cd:1,onG:false})}}if(b.t>1.1){b.sm=0;b.st='idle';b.t=0}}
+  else if(b.st==='idle'){bossGround(b,dt);b.face=dirP;if(b.t>(ph2?0.9:1.2)){b.n++;const m=b.n%4;b.st=m===1?'throw':m===2?'leap':m===3?(G.ents.filter(e=>!e.dead&&e.k==='pbot').length<1?'summon':'throw'):'leap';b.t=0;b.c=0}}
+  else if(b.st==='throw'){bossGround(b,dt);b.face=dirP;if(b.t>0.35){b.t=0;b.c++;b.thr=0.3;const sp=ph2?[-150,150]:[0];for(const o of sp)lob('wrench',b.x+b.face*30,b.y-140,p.x+o+p.vx*0.3,p.y-20,0.85,14);AU.fx('throw');if(b.c>=2){b.st='idle';b.t=0}}b.thr=Math.max(0,(b.thr||0)-dt)}
+  else if(b.st==='summon'){bossGround(b,dt);if(b.t>0.6&&!b.sm){b.sm=1;AU.fx('laugh');for(const sx of[p.x<(A.x0+A.x1)/2?A.x1-60:A.x0+60]){G.ents.push({k:'pbot',x:sx,y:b.gy-200,w:44,h:44,vx:sgn(p.x-sx)*90,vy:0,face:1,hp:1,t:0,st:'walk',x0:sx,y0:b.gy,cd:1,onG:false})}}if(b.t>1.1){b.sm=0;b.st='idle';b.t=0}}
   else if(b.st==='leap'){if(!b.lp){b.lp=1;const tx=clamp(p.x+(p.x<(A.x0+A.x1)/2?120:-120),A.x0+80,A.x1-80);const T=0.85;b.vx=(tx-b.x)/T;b.vy=-GRAV*0.5*T;AU.fx('laugh')}
-   b.x+=b.vx*dt;const land=bossGround(b,dt);if(land&&b.t>0.2){b.lp=0;wave(b.x-40,b.y,-1,ph2?420:340);wave(b.x+40,b.y,1,ph2?420:340);b.st='dizzy';b.t=0;b.dz=ph2?1.1:1.4;AU.fx('pound')}}}
+   b.x+=b.vx*dt;const land=bossGround(b,dt);if(land&&b.t>0.2){b.lp=0;wave(b.x-40,b.y,-1,ph2?340:300);wave(b.x+40,b.y,1,ph2?340:300);b.st='dizzy';b.t=0;b.dz=ph2?2.0:2.4;AU.fx('pound')}}}
  b.x=clamp(b.x,A.x0+30,A.x1-30);
  /* player vs boss */
- if(p.dead||b.st==='dead'||b.st==='intro')return;const bb={x:b.x-b.w/2,y:b.y-b.h,w:b.w,h:b.h};if(b.k==='croc'&&b.st==='dive'&&b.sub)return;
+ if(p.dead||b.st==='dead'||b.st==='intro')return;const bh=b.k==='sweep'&&b.st==='charge'&&G.li===1?b.h*0.45:b.h;const bb={x:b.x-b.w/2,y:b.y-bh,w:b.w,h:bh};if(b.k==='croc'&&b.st==='dive'&&b.sub)return;
  const pb=bx(p);
  if(p.ram>0&&ovr(ramBox(p),bb)){if(damageBoss(b,1,'ram')){p.ram=0;p.ramCd=0.3;p.vx=-p.face*260;p.vy=-300}return}
  if(p.atk>0&&!p.atkHit.has(b)&&ovr(attackBox(p),bb)){p.atkHit.add(b);if(bossOpen(b))damageBoss(b,0,'bonk');else{AU.fx('bonk');ftxt(b.x,b.y-b.h-10,'RAM or STOMP!','#fff')}return}
- if(ovr(pb,bb)){const fromTop=p.vy>40&&p.y-bb.y<34;if(fromTop){damageBoss(b,1,'stomp');p.vy=-760;p.holdJ=0;p.pound=0;return}
-  if(bossOpen(b)){p.x+=sgn(p.x-b.x)*4;return}hurtPlayer(p,b.x)}}
+ if(ovr(pb,bb)){const fromTop=p.vy>40&&p.y-bb.y<34;if(fromTop){damageBoss(b,1,'stomp');p.vy=b.k==='hover'?-560:-760;p.inv=Math.max(p.inv,0.6);p.holdJ=0;p.pound=0;return}
+  if(bossOpen(b)||b.st==='rise'||b.st==='climb'||b.st==='rage'){p.x+=sgn(p.x-b.x)*4;return}hurtPlayer(p,b.x)}}
 function bossBeaten(){const b=G.boss;save.bosses=save.bosses||{};save.bosses[b.i]=1;persist();if(b.k==='mega'){G.finale=1;const A=G.arena,p=G.p,d=p.x<(A.x0+A.x1)/2?1:-1,px=clamp(p.x+d*150,A.x0+90,A.x1-90),cx=clamp(p.x+d*240,A.x0+40,A.x1-40);p.face=d;G.fin=[{n:'peter',x:px,y:G.L.boss.y+2,fl:d>0,sc:1.05},{n:'cake',x:cx,y:G.L.boss.y+2,fl:false,sc:0.9}];AU.fx('free');ftxt(px,G.L.boss.y-200,'PETER IS FREE!','#7aff7a',1);ftxt(px,G.L.boss.y-170,'HAPPY BIRTHDAY, KELLY!','#ff9ad0',1)}levelClear()}
 
 /* ===== rendering ===== */
